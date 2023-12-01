@@ -1,0 +1,173 @@
+<html> 
+	<head>
+	<meta http-equiv="refresh" content="1200">
+	<script src="https://kit.fontawesome.com/92b6194e15.js" crossorigin="anonymous"></script> 
+
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script> 
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.min.js" crossorigin="anonymous"></script> 
+
+	<script type="text/javascript"> 
+	$(document).ready(function () { 
+	$.ajax({ 
+	url: "https://api.openweathermap.org/data/2.5/weather?lat=39.2&lon=-77.72&APPID=90bf3ae3b1d58c0aa6be15b295d150bd&units=imperial", 
+	dataType: 'json' 
+	}).done(function (data) { 
+	let sunriseTime = moment.unix(data.sys.sunrise).format('h:mm A'); 
+	let sunsetTime = moment.unix(data.sys.sunset).format('h:mm A');
+	let sunriseHour = Number(sunriseTime.charAt(0));
+	let sunsetHour = Number(sunsetTime.charAt(0)) + 12;
+	const date = new Date();
+	let curHour = date.getHours();
+	if (date.getMinutes() > 30) {curHour = curHour + 1};
+	const nightTime = !(curHour >= sunriseHour && curHour <= sunsetHour);
+	window.curTemp = Math.round(data.main.temp); 
+	
+	$('#Temp').html(window.curTemp);
+	$('#sunrise').html(sunriseTime); 
+	$('#sunset').html(sunsetTime);
+	windSpeed = Math.round(data.wind.speed);
+	windDeg = data.wind.deg; 
+	$('#wind').html(windSpeed);
+	$('#humidity').html(data.main.humidity);
+
+//	determine wind direction.  null if wind speed is 0
+
+	windDir = "N";
+	if (windDeg > 22 && windDeg <= 68) {windDir = "NE"};
+	if (windDeg > 68 && windDeg <= 112) {windDir = "E"};
+	if (windDeg > 112 && windDeg <= 158) {windDir = "SE"};
+	if (windDeg > 158 && windDeg <= 202) {windDir = "S"};
+	if (windDeg > 202 && windDeg <= 248) {windDir = "SW"};
+	if (windDeg > 248 && windDeg <= 292) {windDir = "W"};
+	if (windDeg > 292 && windDeg <= 338) {windDir = "NW"};
+	if (windSpeed == 0) {windDir = ""};
+	$('#dir').html(windDir);
+
+//	only display wind gust speed if it is available.  "mph" if wind speed is 0
+
+	gustSpeed = Math.round(data.wind.gust);
+	if (isNaN(gustSpeed)) {$('#gust').html("");
+	  } else {$('#gust').html("-".concat(gustSpeed));}
+	if (windSpeed == 0) {$('#gust').html(" mph")};  
+
+//	determine the icon for weather conditions
+	
+	switch(data.weather[0].main) { 
+	case 'Thunderstorm': 
+	$('#icon').addClass('fas fa-cloud-bolt'); 
+	break; 
+	case 'Drizzle': 
+	$('#icon').addClass('fas fa-cloud-rain'); 
+	break; 
+	case 'Rain': 
+	$('#icon').addClass('fas fa-cloud-showers-heavy'); 
+	break; 
+	case 'Snow': 
+	$('#icon').addClass('fas fa-snowflake'); 
+	break; 
+	case 'Atmosphere': 
+	$('#icon').addClass('fas fa-water'); 
+	break; 
+	case 'Clouds':
+	if(!nightTime) {
+	  $('#icon').addClass('fas fa-cloud');
+	  	if(data.weather[0].description == "few clouds") {$('#icon').addClass('fa-cloud-sun');}
+		if(data.weather[0].description == "scattered clouds") {$('#icon').addClass('fa-cloud-sun');}
+		if(data.weather[0].description == "broken clouds") {$('#icon').addClass('fa-cloud-sun');}}
+	if(nightTime) {
+//	  window.alert(nightTime);
+	  $('#icon').addClass('fas fa-cloud');
+	  	if(data.weather[0].description == "few clouds") {$('#icon').addClass('fa-cloud-moon');}
+		if(data.weather[0].description == "scattered clouds") {$('#icon').addClass('fa-cloud-moon');}
+		if(data.weather[0].description == "broken clouds") {$('#icon').addClass('fa-cloud-moon');}}	
+	break; 
+	default: 
+	$('#icon').addClass('fas fa-sun');
+ 	if(nightTime) {$('#icon').addClass('fas fa-moon');};
+	} 
+	}); 
+	
+	$.ajax({ 
+	url: "https://api.openweathermap.org/data/2.5/forecast?lat=39.2&lon=-77.72&APPID=90bf3ae3b1d58c0aa6be15b295d150bd&units=imperial&cnt=8", 
+	dataType: 'json' 
+	}).done(function (data2) { 
+	$('#pop').html(Math.round((data2.list[0].pop)*100));
+
+//	determine Hi and Lo temperatures for the next 24 hours
+	
+	T0 = data2.list[0].main.temp;
+	T1 = data2.list[1].main.temp;
+	T2 = data2.list[2].main.temp;
+	T3 = data2.list[3].main.temp;
+	T4 = data2.list[4].main.temp;
+	T5 = data2.list[5].main.temp;
+	T6 = data2.list[6].main.temp;
+	T7 = data2.list[7].main.temp;
+	T8 = window.curTemp;
+
+//	reload the page if T8 is undefined (I don't know why T8 is occasionally undefined,
+//	but reloading the page until it is defined works.  Probably has something to do with
+//	the timing of the json calls??)
+
+	if (typeof T8 === 'undefined') {location.reload();}
+
+	HiTemp = Math.round(Math.max(T0, T1, T2, T3, T4, T5, T6, T7, T8));
+	LoTemp = Math.round(Math.min(T0, T1, T2, T3, T4, T5, T6, T7, T8));
+
+	$('#maxTemp').html(HiTemp);
+	$('#minTemp').html(LoTemp);
+	
+	});
+	$('#aqiText').html("Next 24hr Temps");
+
+//	Get the air quality and only display it in yellow if it is >3
+
+	$.ajax({ 
+	url: "http://api.openweathermap.org/data/2.5/air_pollution?lat=39.2&lon=-77.72&appid=90bf3ae3b1d58c0aa6be15b295d150bd", 
+	dataType: 'json' 
+	}).done(function (data3) { 
+	
+	Aqi = data3.list[0].main.aqi;
+//	Aqi = 4;
+//	window.alert(Aqi);
+//	Aqi:  1 = Good, 2 = Fair, 3 = Moderate, 4 = Poor, 5 = Very Poor	
+
+	switch(Aqi) { 
+	case 1: 
+	$('#aqiText').html("Next 24hr Temps"); 
+	break; 
+	case 2: 
+	$('#aqiText').html("Next 24hr Temps"); 
+	break; 
+	case 3: 
+	$('#aqiText').html("Next 24hr Temps");
+	break; 
+	case 4: 
+	$('#aqiText').html("Air is POOR");
+	break; 
+	default: 
+	$('#aqiText').html("Air is VERY POOR");
+	} 
+	
+	let element = document.getElementById('aqiText');
+	if (Aqi > 3) {element.style.color = "yellow";}
+
+	});
+
+		
+	});
+	
+
+	</script> 
+	</head> 
+	<body style="margin:4px;" text="#ffffff" bgcolor="#808080"> 
+	<div align="middle" style="font-family: Roboto,Helvetica Neue,sans-serif"> 
+	<span style="font-size:1.2em;" >Purcellville...</span><span style="font-size:1.0em;" ><span id="aqiText"></span></span><br/>
+	<span style="font-size:1.4em;" ><span id="maxTemp"></span>&deg <span style="font-size:2.1em; padding:5px;"><i id="icon" class="fas"></i> <span id="Temp"></span>&deg;</span> 
+	    <span id="minTemp"></span>&deg;</span><br/>
+	<span style="font-size:1.2em;"><span id="sunrise"></span> <i class="fas fa-sun"></i> <span id="sunset"></span></span></br/> 
+	<span style="font-size:1.2em;"><i class="fas fa-umbrella"></i> <span id="pop"></span>% &nbsp; <span id="dir"></span> <span id="wind"> </span><span id="gust"> </span>  &nbsp; <i class="fas fa-droplet"></i> <span id="humidity"></span>% 
+	</div> 
+	</body> 
+	</html>
